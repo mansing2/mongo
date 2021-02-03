@@ -1,0 +1,44 @@
+- hosts: localhost
+  remote_user: root
+  become: yes
+  vars:
+     mongodb_version: 4.2
+     mongodb_full_version: 4.2.9
+  tasks:
+   - name: Add mongodb.org gpgkey
+     rpm_key:
+       key: https://www.mongodb.org/static/pgp/server-{{ mongodb_version }}.asc
+       state: present
+     register: _yum
+     until: _yum is succeeded
+     retries: 5
+
+   - name: Ensure MongoDB yum repository exists
+     yum_repository:
+       name: "mongodb"
+       description: "Official MongoDB {{ mongodb_version }} yum repo"
+       baseurl: "https://repo.mongodb.com/yum/redhat/$releasever/mongodb-enterprise/{{ mongodb_version }}/$basearch/"
+       gpgcheck: true
+       gpgkey: "https://www.mongodb.org/static/pgp/server-{{ mongodb_version }}.asc"
+     register: _yum
+     until: _yum is succeeded
+     retries: 5
+   
+   - name: Install MongoDB Enterprise  
+     yum:
+       name: "{{ item }}"
+       state: present
+     with_items:
+       - mongodb-enterprise-{{ mongodb_full_version }} 
+       - mongodb-enterprise-server-{{ mongodb_full_version }}
+       - mongodb-enterprise-shell-{{ mongodb_full_version }}
+       - mongodb-enterprise-mongos-{{ mongodb_full_version }}
+       - mongodb-enterprise-tools-{{ mongodb_full_version }}
+     notify:
+       - start mongodb
+
+  handlers:
+    - name: start mongodb
+      service: 
+        name: mongod
+        state: started
